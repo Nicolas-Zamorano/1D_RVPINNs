@@ -52,7 +52,6 @@ class Residual:
             self.gram_elemental_inv_matrix = gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
         
-    
     def residual_value(self):
         """
         Compute the residual value.
