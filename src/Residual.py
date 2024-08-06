@@ -1,4 +1,5 @@
 import torch
+from Quadrature_Rule import Quadrature_Rule
 
 class Residual:
     """
@@ -9,6 +10,7 @@ class Residual:
     - quadrature_rule (Quadrature_rule): Quadrature rule for numerical integration
     - gram_elemental_inv_matrix (torch.Tensor): Inverse Gram matrix for subintervals
     - gram_boundary_inv_matrix (torch.Tensor): Inverse Gram matrix for boundary conditions
+    - governing_equations (function): Function that evalutes governing equations. it has to have 4 parameters: NN_evaluation, NN_initial_values,  jac_evaluation and initial_values. it has to return 3 torch.Tensor: derivates, governing_equations_evaluation, constrain_vector
     - initial_points (torch.Tensor): Initial points of governing equations
     - initial_values (torch.Tensor): Initial values of governing equations
     - equations_parameters (torch.Tensor): parameters of governing equations
@@ -18,17 +20,17 @@ class Residual:
                  model_evaluation: torch.nn.Module,
                  quadrature_rule: Quadrature_Rule,              
                  gram_elemental_inv_matrix: torch.Tensor,    
-                 gram_boundary_inv_matrix: torch.Tensor,     
+                 gram_boundary_inv_matrix: torch.Tensor,
+                 governing_equations,
                  initial_points: torch.Tensor,               
                  initial_values: torch.Tensor,
-                 equations_parameters: torch.Tensor,
                  constrain_parameter: float = 0.5):
             
         self.model_evaluation = model_evaluation
         self.quadrature_rule = quadrature_rule
+        self.governing_equations = governing_equations 
         self.initial_points = initial_points
         self.initial_values = initial_values
-        self.equations_parameters = equations_parameters
         self.constrain_parameter = constrain_parameter
         self.update_gram_matrix(gram_elemental_inv_matrix, 
                                 gram_boundary_inv_matrix)
@@ -50,37 +52,6 @@ class Residual:
             self.gram_elemental_inv_matrix = gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
         
-    def governing_equations(self):
-        """
-        Compute the governing equations.
-        
-        Returns:
-        - dx (torch.Tensor): Derivative of the neural network output with respect to x.
-        - dy (torch.Tensor): Derivative of the neural network output with respect to y.
-        - f_1 (torch.Tensor): Right side values of the first governing equation.
-        - f_2 (torch.Tensor): Right side values of the second governing equation.
-        - constrain (torch.Tensor): Constraint values representing the difference between
-          the neural network's initial values and the given initial values.
-        """
-        NN_evaluation, NN_initial_values, jac_evaluation = self.model_evaluation(
-            self.quadrature_rule.mapped_integration_nodes_single_dimension, 
-            self.initial_points)
-        
-        mu_max, K, D, s_in= self.equations_parameters
-        
-        x, s = torch.split(NN_evaluation, 1, dim=1)
-        
-        dx, dy = torch.split(jac_evaluation, 1, dim=1)
-        
-        # Computes right side value of governing equations.
-        f_1 = (mu_max * s * x) / (s + K) - D * x
-        f_2 = (s_in - s) * D - (mu_max * s * x) / (s + K)
-        
-        constrain = NN_initial_values - self.initial_values
-        
-        del NN_evaluation, NN_initial_values, jac_evaluation
-                
-        return dx, dy, f_1, f_2, constrain
     
     def residual_value(self):
         """
@@ -91,7 +62,13 @@ class Residual:
         """
         print("Computing Residual Value...")
         
-        dx, dy, f_1, f_2, constrain_vector = self.governing_equations()
+        NN_evaluation, NN_initial_values, jac_evaluation = self.model_evaluation(self.quadrature_rule.mapped_integration_nodes_single_dimension, 
+                                                                                 self.initial_points)
+        
+        dx, dy, f_1, f_2, constrain_vector = self.governing_equations(NN_evaluation,
+                                                                      NN_initial_values,
+                                                                      jac_evaluation,
+                                                                      self.initial_values)
         
         residual_x_vector = self.quadrature_rule.integrate(f_1) - self.quadrature_rule.integrate(dx)
         residual_y_vector = self.quadrature_rule.integrate(f_2) - self.quadrature_rule.integrate(dy)
@@ -99,8 +76,8 @@ class Residual:
         residual_vector = torch.concat([residual_x_vector,
                                         residual_y_vector], dim=0)
                 
-        x_A = torch.matmul(residual_vector, self.gram_elemental_inv_matrix)
-        residual_value = torch.sum(x_A * residual_vector, dim = 1)
+        residual_value = torch.sum(torch.matmul(residual_vector, 
+                                                self.gram_elemental_inv_matrix) * residual_vector, dim = 1)
         
         # Use this code if gram_elemental_inv_matrix are diferent for each subinterval
         #
@@ -112,12 +89,12 @@ class Residual:
         #     residual_value[i] = torch.matmul(x_A[i], residual_vector[i].unsqueeze(0).T.detach().clone())
         #     print(f"\rComputing Residual Value: Processing {i + 1} of {residual_vector.size(0)}", end='', flush=True)
         
-        constrain_value = self.constrain_parameter * torch.matmul(constrain_vector, torch.matmul(self.gram_boundary_inv_matrix,
-                                                               constrain_vector, dim = 1))
+        constrain_value = self.constrain_parameter * torch.sum(torch.matmul(constrain_vector, self.gram_boundary_inv_matrix
+                                                               ) * constrain_vector,dim = 0, keepdim = True)
         
         loss = torch.nn.L1Loss(reduction='sum')
         
-        del dx, dy, f_1, f_2, constrain_vector, x_A
+        del dx, dy, f_1, f_2, constrain_vector
         
         return loss(torch.concat([residual_value, constrain_value], dim = 0),
                     torch.zeros(residual_value.size(0) + constrain_value.size(0),requires_grad = False))
