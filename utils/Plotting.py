@@ -29,7 +29,7 @@ class Plotting():
                  solution_labels = ["$x^1$", "$x^2$"],
                  solution_colors = ["blue", "red"],
                  NN_labels = ["$u_{\theta}^1$", "$u_{\theta}^2$"],
-                 NN_colors = ["orange", "purple"],
+                 NN_colors = ["purple", "orange"],
                  NN_linestyle = [":", "-."],
                  plot_norm: bool = False):
         """
@@ -79,14 +79,14 @@ class Plotting():
         if plot_norm == True:
             
             axis_loss.semilogy(self.loss_evolution)
-            axis_loss.set(title="Loss evolution") 
-                   xlabel="# epochs", 
-                   ylabel="Loss")
+            axis_loss.set(title="Loss evolution",
+                          xlabel="# epochs", 
+                          ylabel="Loss")
 
         else:
             
             axis_loss.semilogy(self.loss_evolution)
-            axis_loss.set(title="Loss evolution with learning rate =%.3f" %learning_rate, 
+            axis_loss.set(title="Loss evolution", 
                    xlabel="# epochs", 
                    ylabel="Loss")
             
