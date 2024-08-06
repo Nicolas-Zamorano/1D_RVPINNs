@@ -101,10 +101,6 @@ for epoch in range(epochs):
     NN.optimizer_step(res_value)
     loss_evolution.append(res_value.item())
         
-##-------------------Saving-----------------------##
-
-#torch.save(NN.state_dict(), "parametros_clin.pt")
-
 ##----------------------Plotting------------------##
 
 def exact_solution(x):
@@ -114,7 +110,5 @@ def exact_solution(x):
 plt = Plotting(NN.evaluate, domain, exact_solution, loss_evolution=loss_evolution)
 
 plt.plot_IVP(NN.learning_rate)
-
-# Borrado de variables
 
 torch.cuda.empty_cache()
