@@ -24,7 +24,7 @@ hidden_layers_dimension = 50
 ##----------------------Training Parameters------------------##
 
 batch_size = 1000
-epochs = 2500
+epochs = 3000
 learning_rate = 0.00005
 optimizer = "Adam" # Adam or SGD
 
@@ -109,6 +109,6 @@ def exact_solution(x):
 
 plt = Plotting(NN.evaluate, domain, exact_solution, loss_evolution=loss_evolution)
 
-plt.plot_IVP(NN.learning_rate)
+plt.plot_IVP()
 
 torch.cuda.empty_cache()
