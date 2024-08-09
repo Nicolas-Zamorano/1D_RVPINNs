@@ -24,8 +24,8 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 6000
-learning_rate = 0.00005
+epochs = 1000
+learning_rate = 0.0005
 optimizer = "Adam" # Adam or SGD
 
 ##----------------------ODE Parameters------------------##
