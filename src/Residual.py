@@ -10,7 +10,7 @@ class Residual:
     - quadrature_rule (Quadrature_rule): Quadrature rule for numerical integration
     - gram_elemental_inv_matrix (torch.Tensor): Inverse Gram matrix for subintervals
     - gram_boundary_inv_matrix (torch.Tensor): Inverse Gram matrix for boundary conditions
-    - governing_equations (function): Function that evalutes governing equations. it has to have 4 parameters: NN_evaluation, NN_initial_values,  jac_evaluation and initial_values. it has to return 3 torch.Tensor: derivates, governing_equations_evaluation, constrain_vector
+    - governing_equations (function): Function that evalutes governing equations. it has to have 2 parameters: collocation_points, NN_evaluation. it has to return 1 torch.Tensor: governing_equations_evaluation
     - initial_points (torch.Tensor): Initial points of governing equations
     - initial_values (torch.Tensor): Initial values of governing equations
     - equations_parameters (torch.Tensor): parameters of governing equations
@@ -52,9 +52,9 @@ class Residual:
             self.gram_elemental_inv_matrix = gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
         
-    def residual_value(self):
+    def residual_value_IVP(self):
         """
-        Compute the residual value.
+        Compute the residual value for a Initial Value Problem (IVP).
         
         Returns:
         - loss_value (torch.Tensor): The computed loss value.
@@ -64,10 +64,13 @@ class Residual:
         NN_evaluation, NN_initial_values, jac_evaluation = self.model_evaluation(self.quadrature_rule.mapped_integration_nodes_single_dimension, 
                                                                                  self.initial_points)
         
-        dx, dy, f_1, f_2, constrain_vector = self.governing_equations(NN_evaluation,
-                                                                      NN_initial_values,
-                                                                      jac_evaluation,
-                                                                      self.initial_values)
+        governing_equations_evaluation = self.governing_equations(self.quadrature_rule.mapped_integration_nodes_single_dimension, 
+                                                 NN_evaluation)
+        
+        dx, dy = torch.split(jac_evaluation, 1, dim = 1)
+        f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)
+        
+        constrain_vector = NN_initial_values - self.initial_values
         
         residual_x_vector = self.quadrature_rule.integrate(f_1) - self.quadrature_rule.integrate(dx)
         residual_y_vector = self.quadrature_rule.integrate(f_2) - self.quadrature_rule.integrate(dy)

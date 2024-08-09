@@ -40,18 +40,15 @@ collocation_points = torch.linspace(domain[0],
                                     batch_size, 
                                     requires_grad = False)
 
-def governing_equations(NN_evaluation, NN_initial_values, jac_evaluation, initial_values):
+def governing_equations(times, values):
     
-    x, y = torch.split(NN_evaluation, 1, dim=1)
-    dx, dy = torch.split(jac_evaluation, 1, dim=1)
+    x, y = torch.split(values, 1 , dim = 1)
     
     f_1 = -y
     f_2 = x
-    
-    
-    constrain_vector = NN_initial_values - initial_values
-    
-    return dx, dy, f_1, f_2, constrain_vector
+
+    return torch.concat([f_1,f_2], dim = 1)
+
 ##-------------------Residual Parameters---------------------##
 
 constrain_parameter = 0.01
@@ -96,7 +93,7 @@ print(f"{'='*30} Training {'='*30}")
 for epoch in range(epochs):
     current_time = datetime.now().strftime("%H:%M:%S")
     print(f"{'='*20} [{current_time}] Epoch:{epoch + 1}/{epochs} {'='*20}")
-    res_value = res.residual_value()
+    res_value = res.residual_value_IVP()
     print(f"Loss: {res_value.item():.8f}")
     NN.optimizer_step(res_value)
     loss_evolution.append(res_value.item())
