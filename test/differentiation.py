@@ -28,17 +28,17 @@ def jacobian(NN_eval: torch.nn.Module,
     return jacobian
 
 NN_ODE = Neural_Network(input_dimension = 1, 
-                    output_dimension = 2)
+                    output_dimension = 1)
 
 ODE_example_point = torch.tensor([0.0]).unsqueeze(1)
 
-NN_ODE_jac = NN_ODE.jacobian(ODE_example_point)
+NN_ODE_jac = NN_ODE.jacobian(ODE_example_point).squeeze(2)
 NN_ODE_jac_app = jacobian(NN_ODE.evaluate, 
-                          ODE_example_point)
-error_ODE = torch.sum(abs(NN_ODE_jac - NN_ODE_jac_app))
+                          ODE_example_point,
+                          h = 2**(-12))
+error_ODE = abs(NN_ODE_jac - NN_ODE_jac_app)/abs(NN_ODE_jac)
 
-
-print("Error of differenciation of ODE Neural Network:", error_ODE.item())
+print("Relative error of differenciation of Neural Network:", error_ODE.item())
 
 
 
