@@ -23,8 +23,8 @@ class Quadrature_Rule:
         
         if self.quadrature_rule_name == "Gauss-Legendre":
             integration_nodes, integration_weights = leggauss(number_integration_nodes)
-            self.integration_nodes = torch.tensor(integration_nodes, dtype=torch.float32, requires_grad = False)
-            self.integration_weights = torch.tensor(integration_weights, dtype=torch.float32,  requires_grad = False)
+            self.integration_nodes = torch.tensor(integration_nodes, requires_grad = False)
+            self.integration_weights = torch.tensor(integration_weights,  requires_grad = False)
         
         self.update_collocation_points(collocation_points)
         
