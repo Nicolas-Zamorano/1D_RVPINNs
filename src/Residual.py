@@ -10,10 +10,10 @@ class Residual:
     - quadrature_rule (Quadrature_rule): Quadrature rule for numerical integration
     - gram_elemental_inv_matrix (torch.Tensor): Inverse Gram matrix for subintervals
     - gram_boundary_inv_matrix (torch.Tensor): Inverse Gram matrix for boundary conditions
-    - governing_equations (function): Function that evalutes governing equations. it has to have 2 parameters: collocation_points, NN_evaluation. it has to return 1 torch.Tensor: governing_equations_evaluation
+    - governing_equations (function): Function that evalutes governing equations. it has to have 2 parameters: collocation_points, NN_evaluation, parameters. it has to return 1 torch.Tensor: governing_equations_evaluation
     - initial_points (torch.Tensor): Initial points of governing equations
     - initial_values (torch.Tensor): Initial values of governing equations
-    - equations_parameters (torch.Tensor): parameters of governing equations
+    - governing_equations_parameters (list): parameters of governing equations (default is None)
     - constrain_parameter (float): value of contrain constant (default is 0.5)
     """   
     def __init__(self, 
@@ -24,13 +24,15 @@ class Residual:
                  governing_equations,
                  initial_points: torch.Tensor,               
                  initial_values: torch.Tensor,
-                 constrain_parameter: float = 0.5):
+                 governing_equations_parameters: list = None,
+                 constrain_parameter: float = 0.5,):
             
         self.model_evaluation = model_evaluation
         self.quadrature_rule = quadrature_rule
         self.governing_equations = governing_equations 
         self.initial_points = initial_points
         self.initial_values = initial_values
+        self.governing_equations_parameters = governing_equations_parameters
         self.constrain_parameter = constrain_parameter
         self.update_gram_matrix(gram_elemental_inv_matrix, 
                                 gram_boundary_inv_matrix)
@@ -64,8 +66,9 @@ class Residual:
         NN_evaluation, NN_initial_values, jac_evaluation = self.model_evaluation(self.quadrature_rule.mapped_integration_nodes_single_dimension, 
                                                                                  self.initial_points)
         
-        governing_equations_evaluation = self.governing_equations(self.quadrature_rule.mapped_integration_nodes_single_dimension, 
-                                                 NN_evaluation)
+        governing_equations_evaluation = self.governing_equations(self.quadrature_rule.mapped_integration_nodes_single_dimension,
+                                                                  NN_evaluation,
+                                                                  self.governing_equations_parameters)
         
         dx, dy = torch.split(jac_evaluation, 1, dim = 1)
         f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)

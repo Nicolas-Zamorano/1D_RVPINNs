@@ -19,12 +19,12 @@ from Plotting import Plotting
 input_dimension = 1
 output_dimension = 2
 deep_layers = 5
-hidden_layers_dimension = 50
+hidden_layers_dimension = 25
 
 ##----------------------Training Parameters------------------##
 
-batch_size = 1000
-epochs = 3000
+batch_size = 100
+epochs = 6000
 learning_rate = 0.00005
 optimizer = "Adam" # Adam or SGD
 
@@ -40,7 +40,7 @@ collocation_points = torch.linspace(domain[0],
                                     batch_size, 
                                     requires_grad = False)
 
-def governing_equations(times, values):
+def governing_equations(times, values, parameters):
     
     x, y = torch.split(values, 1 , dim = 1)
     
@@ -102,7 +102,6 @@ for epoch in range(epochs):
 
 def exact_solution(x):
     return torch.concat([torch.sin(x),torch.cos(x)], dim = 1)
-
 
 plt = Plotting(NN.evaluate, domain, exact_solution, loss_evolution=loss_evolution)
 
