@@ -80,10 +80,10 @@ class Neural_Network(torch.nn.Module):
         """
         evaluation_points = evaluation_points
         initial_points = initial_points
-        NN_evaluation = self.evaluate(evaluation_points.unsqueeze(1))  
-        NN_initial_values = torch.diagonal(self.evaluate(initial_points.unsqueeze(1)), dim1=-2, dim2=-1)  
+        NN_evaluation = self.evaluate(evaluation_points)  
+        NN_initial_values = torch.diagonal(self.evaluate(initial_points), dim1=-2, dim2=-1)  
         
-        jacobian_values = self.jacobian(evaluation_points.unsqueeze(1)).squeeze(2)  
+        jacobian_values = self.jacobian(evaluation_points).squeeze(2)  
         
         return NN_evaluation, NN_initial_values, jacobian_values
         
