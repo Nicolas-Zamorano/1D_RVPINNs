@@ -23,8 +23,8 @@ class Quadrature_Rule:
         
         if self.quadrature_rule_name == "Gauss-Legendre":
             integration_nodes, integration_weights = leggauss(number_integration_nodes)
-            self.integration_nodes = torch.tensor(integration_nodes, requires_grad = False)
-            self.integration_weights = torch.tensor(integration_weights,  requires_grad = False)
+            self.integration_nodes = torch.tensor(integration_nodes, requires_grad = False).unsqueeze(1)
+            self.integration_weights = torch.tensor(integration_weights,  requires_grad = False).unsqueeze(1)
         
         self.update_collocation_points(collocation_points)
         
@@ -39,8 +39,8 @@ class Quadrature_Rule:
                 self.polynomial_evaluation = torch.ones_like(self.mapped_integration_nodes)
             
             if self.polynomial_degree == 1:
-                poly_eval_positive = (self.mapped_integration_nodes - self.collocation_points[:-1].unsqueeze(1)) / self.elements_diameter.unsqueeze(1)
-                poly_eval_negative = (self.collocation_points[1:].unsqueeze(1) - self.mapped_integration_nodes) / self.elements_diameter.unsqueeze(1)
+                poly_eval_positive = (self.mapped_integration_nodes - self.collocation_points[:-1]) / self.elements_diameter
+                poly_eval_negative = (self.collocation_points[1:] - self.mapped_integration_nodes) / self.elements_diameter
                 
                 self.polynomial_evaluation = torch.stack([poly_eval_positive, poly_eval_negative], dim=0)
                 
@@ -67,12 +67,10 @@ class Quadrature_Rule:
             self.sum_collocation_points = collocation_points[1:] + collocation_points[:-1]
             self.number_subintervals = self.elements_diameter.size(0)
             
-            self.mapped_weights = 0.5 * self.elements_diameter.unsqueeze(1) * self.integration_weights
-            self.mapped_integration_nodes = 0.5 * self.elements_diameter.unsqueeze(1) * self.integration_nodes + 0.5 * self.sum_collocation_points.unsqueeze(1)
-            self.mapped_integration_nodes_single_dimension = self.mapped_integration_nodes.view(-1)
-            
-            del collocation_points
-            
+            self.mapped_weights = 0.5 * self.elements_diameter * self.integration_weights.T
+            self.mapped_integration_nodes = 0.5 * self.elements_diameter * self.integration_nodes.T + 0.5 * self.sum_collocation_points
+            self.mapped_integration_nodes_single_dimension = self.mapped_integration_nodes.view(-1,1)
+                        
             self.polynomial_evaluations()
         
     def integrate(self, 
@@ -101,7 +99,5 @@ class Quadrature_Rule:
             
             nodes_value = function_values.view(self.mapped_integration_nodes.size())
             integral_value = torch.sum(self.mapped_weights * nodes_value, dim=1)
-        
-        del function_values, nodes_value
         
         return integral_value

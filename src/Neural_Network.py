@@ -78,10 +78,8 @@ class Neural_Network(torch.nn.Module):
         - NN_initial_values (torch.Tensor): Initial values of the model.
         - jacobian_values (torch.Tensor): Jacobian evaluation at the given nodes.
         """
-        evaluation_points = evaluation_points
-        initial_points = initial_points
         NN_evaluation = self.evaluate(evaluation_points)  
-        NN_initial_values = torch.diagonal(self.evaluate(initial_points), dim1=-2, dim2=-1)  
+        NN_initial_values = torch.diagonal(self.evaluate(initial_points), dim1=-2, dim2=-1).unsqueeze(1) 
         
         jacobian_values = self.jacobian(evaluation_points).squeeze(2)  
         
