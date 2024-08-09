@@ -38,7 +38,7 @@ NN_ODE_jac_app = jacobian(NN_ODE.evaluate,
                           h = 2**(-12))
 error_ODE = abs(NN_ODE_jac - NN_ODE_jac_app)/abs(NN_ODE_jac)
 
-print("Relative error of differenciation of Neural Network:", error_ODE.item())
+print("Relative error of differentiation of Neural Network:", error_ODE.item())
 
 
 
