@@ -45,7 +45,7 @@ class Plotting():
         """
         plot_points = torch.linspace(self.domain[0], 
                                      self.domain[1], 
-                                     steps=1000).unsqueeze(1)
+                                     steps=10000).unsqueeze(1)
         
         NN_evaluation = self.NN_evaluate(plot_points).cpu().detach().numpy()
         exact_evaluation = self.exact_solution(plot_points).cpu().detach().numpy()
