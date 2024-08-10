@@ -17,7 +17,7 @@ def polynomial(x:torch.Tensor):
 def poly_integral(x:torch.Tensor):
     return torch.pow(x[1:],6)-torch.pow(x[:-1],6)
 
-collocation_points = torch.linspace(-100,100, 100)
+collocation_points = torch.linspace(-100,100, 100).unsqueeze(1)
 
 quad = Quadrature_Rule(collocation_points)
 
@@ -26,7 +26,7 @@ integral = poly_integral(collocation_points)
 integration_nodes = polynomial(quad.mapped_integration_nodes_single_dimension)
 
 integral_app = quad.integrate(integration_nodes, 
-                              multiply_by_test = False)
+                              multiply_by_test = False).unsqueeze(1)
 
 max_error = max(abs(integral-integral_app)/integral)
 
@@ -39,13 +39,13 @@ def NN_exact(NN: Neural_Network,
 NN = Neural_Network(input_dimension = 1, 
                     output_dimension = 1)
 
-NN_collocation_points = torch.linspace(0, 10, 100)
+NN_collocation_points = torch.linspace(0, 10, 100).unsqueeze(1)
 
 NN_quad = Quadrature_Rule(NN_collocation_points)
 
-NN_integral = NN_exact(NN, NN_collocation_points.unsqueeze(1))
+NN_integral = NN_exact(NN, NN_collocation_points)
 
-NN_integration_nodes = NN.jacobian(NN_quad.mapped_integration_nodes_single_dimension.unsqueeze(1)).squeeze(2)
+NN_integration_nodes = NN.jacobian(NN_quad.mapped_integration_nodes_single_dimension).squeeze(2)
 
 NN_integral_app = NN_quad.integrate(NN_integration_nodes,
                                  multiply_by_test = False).unsqueeze(1)

@@ -6,7 +6,7 @@ from numpy import pi
 sys.path.insert(0, "../src/")
 sys.path.insert(1, "../utils/")
 torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
-torch.cuda.empty_cache
+torch.cuda.empty_cache()
 torch.set_default_dtype(torch.float64)
 
 from Neural_Network import Neural_Network
@@ -24,21 +24,21 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 1000
-learning_rate = 0.0005
+epochs = 10000
+learning_rate = 0.000025
 optimizer = "Adam" # Adam or SGD
 
 ##----------------------ODE Parameters------------------##
 
-domain = (-pi, pi)
+domain = (0.0, 2*pi)
 
-initial_points = torch.tensor([0.0, 0.0], requires_grad = False)
-initial_values = torch.tensor([1.0, 0.0], requires_grad = False)
+initial_points = torch.tensor([0.0, 0.0], requires_grad = False).unsqueeze(1)
+initial_values = torch.tensor([1.0, 0.0], requires_grad = False).unsqueeze(1)
 
 collocation_points = torch.linspace(domain[0], 
                                     domain[1], 
                                     batch_size, 
-                                    requires_grad = False)
+                                    requires_grad = False).unsqueeze(1)
 
 def governing_equations(times, values, parameters):
     
