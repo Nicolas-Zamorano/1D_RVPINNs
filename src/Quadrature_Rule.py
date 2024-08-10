@@ -43,13 +43,7 @@ class Quadrature_Rule:
                 poly_eval_negative = (self.collocation_points[1:] - self.mapped_integration_nodes) / self.elements_diameter
                 
                 self.polynomial_evaluation = torch.stack([poly_eval_positive, poly_eval_negative], dim=0)
-                
-                value = self.polynomial_evaluation.clone()
-                self.polynomial_evaluation[value > 1.0] = 0
-                self.polynomial_evaluation[value < 0.0] = 0
-                
-                del poly_eval_positive, poly_eval_negative, value
-            
+      
     def update_collocation_points(self, 
                                   collocation_points: torch.Tensor):
         """
