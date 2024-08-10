@@ -58,7 +58,7 @@ class Residual:
         
         with torch.no_grad():
         
-            self.gram_elemental_inv_matrix = (1/self.quadrature_rule.elements_diameter[-1])/gram_elemental_inv_matrix
+            self.gram_elemental_inv_matrix = (1/max(self.quadrature_rule.elements_diameter)) * gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
         
     def residual_value_IVP(self):
@@ -87,10 +87,12 @@ class Residual:
         
         residual_vector = torch.concat([residual_x_vector,
                                         residual_y_vector], dim=0)
-                
-        residual_value = torch.sum(torch.matmul(residual_vector, 
-                                                self.gram_elemental_inv_matrix) * residual_vector, 
-                                   dim = 1).unsqueeze(1)
+                        
+        residual_value = torch.sum(residual_vector * torch.matmul(residual_vector, 
+                                                                  self.gram_elemental_inv_matrix), 
+                                   dim = 1, 
+                                   keepdim = True)
+
         
         # Use this code if gram_elemental_inv_matrix are diferent for each subinterval
         #
