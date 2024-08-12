@@ -24,8 +24,8 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 10000
-learning_rate = 0.000025
+epochs = 12000
+learning_rate = 0.00002
 optimizer = "Adam" # Adam or SGD
 
 ##----------------------ODE Parameters------------------##
@@ -51,7 +51,7 @@ def governing_equations(times, values, parameters):
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 0.01
+constrain_parameter = 0.1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
