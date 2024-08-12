@@ -1,5 +1,7 @@
 import torch
 from Quadrature_Rule import Quadrature_Rule
+from typing import Callable
+
 
 class Residual:
     """
@@ -22,13 +24,12 @@ class Residual:
                  quadrature_rule: Quadrature_Rule,              
                  gram_elemental_inv_matrix: torch.Tensor,    
                  gram_boundary_inv_matrix: torch.Tensor,
-                 governing_equations,
+                 governing_equations: Callable,
                  initial_points: torch.Tensor,               
                  initial_values: torch.Tensor,
                  governing_equations_parameters: list = None,
                  constrain_parameter: float = 0.5,
-                 compute_relative_error: bool = False,
-                 relative_error_solver = None):
+                 compute_relative_error: bool = False):
             
         self.model_evaluation = model_evaluation
         self.quadrature_rule = quadrature_rule
@@ -40,10 +41,6 @@ class Residual:
         self.update_gram_matrix(gram_elemental_inv_matrix, 
                                 gram_boundary_inv_matrix)
         self.compute_relative_error = compute_relative_error
-        if (compute_relative_error == True):
-            self.exact_solution = relative_error_solver(self.governing_equations,
-                                                        self.initial_values.unsqueeze(0),
-                                                        se)
     def update_gram_matrix(self, 
                            gram_elemental_inv_matrix: torch.Tensor, 
                            gram_boundary_inv_matrix: torch.Tensor):
