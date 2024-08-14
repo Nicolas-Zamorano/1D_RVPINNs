@@ -1,7 +1,8 @@
 import sys
 import torch
-from datetime import datetime
 from numpy import pi
+from datetime import datetime
+from matplotlib.pyplot import subplots
 
 sys.path.insert(0, "../src/")
 sys.path.insert(1, "../utils/")
@@ -12,7 +13,6 @@ torch.set_default_dtype(torch.float64)
 from Neural_Network import Neural_Network
 from Quadrature_Rule import Quadrature_Rule
 from Residual import Residual
-from Plotting import Plotting
 
 ##----------------------Neural Network Parameters------------------##
 
@@ -27,6 +27,13 @@ batch_size = 100
 epochs = 12000
 learning_rate = 0.00002
 optimizer = "Adam" # Adam or SGD
+
+NN = Neural_Network(input_dimension = input_dimension, 
+                    output_dimension = output_dimension, 
+                    deep_layers = deep_layers, 
+                    hidden_layers_dimension = hidden_layers_dimension,
+                    optimizer = "Adam",
+                    learning_rate = learning_rate)
 
 ##----------------------ODE Parameters------------------##
 
@@ -49,6 +56,41 @@ def governing_equations(times, values, parameters):
 
     return torch.concat([f_1,f_2], dim = 1)
 
+
+quad = Quadrature_Rule(collocation_points = collocation_points,
+                       initial_points = initial_points)
+
+##----------------------Posteriori Error------------------##
+
+def exact_solution(x):
+    return torch.concat([torch.cos(x),torch.sin(x)], dim = 1)
+
+
+exact_evalution = quad.interpolate(exact_solution)
+
+def exact_jacobian_solution(x):
+    return governing_equations(x, exact_evalution, None)
+
+exact_jacobian_evaluation = quad.interpolate(lambda x: governing_equations(x, 
+                                                                           exact_evalution, 
+                                                                           parameters = None))
+x_exact, y_exact = torch.split(exact_evalution,
+                               1,
+                               dim = 1)
+
+dx_exact, dy_exact = torch.split(exact_jacobian_evaluation,
+                                 1,
+                                 dim = 1)
+
+L_2_norm = torch.sum((quad.integrate(x_exact**2+y_exact**2)))
+
+L_2_jacobian_norm = torch.sum((quad.integrate(dx_exact**2+dy_exact**2)))
+
+L_2_boundary_norm = torch.sum((initial_values**2))
+
+exact_H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + L_2_boundary_norm)
+
+
 ##-------------------Residual Parameters---------------------##
 
 constrain_parameter = 0.1
@@ -58,53 +100,102 @@ gram_matrix_inv = torch.tensor([[4.0, -2.0],
                                requires_grad = False)
 gram_boundary_matrix = torch.eye(output_dimension)
 
-##-------------------Initialization---------------------##
 
-print("Initializating Neural Network...")
-
-NN = Neural_Network(input_dimension = input_dimension, 
-                    output_dimension = output_dimension, 
-                    deep_layers = deep_layers, 
-                    hidden_layers_dimension = hidden_layers_dimension,
-                    optimizer = "Adam",
-                    learning_rate = learning_rate)
-
-print("Initializating Quadrature Rule...")
-
-quad = Quadrature_Rule(collocation_points = collocation_points)
-
-print("Initializating Residual...")
-
-res = Residual(model_evaluation = NN.model_evaluation,
+res = Residual(neural_network = NN,
                quadrature_rule = quad,
                gram_elemental_inv_matrix = gram_matrix_inv,
                gram_boundary_inv_matrix = gram_boundary_matrix,
                governing_equations = governing_equations,
                initial_points = initial_points,
                initial_values = initial_values,
-               constrain_parameter= constrain_parameter)
+               constrain_parameter= constrain_parameter,
+               compute_relative_error = True,
+               error_quad = quad,
+               exact_solution = exact_solution,
+               exact_jacobian_solution = exact_jacobian_solution,
+               H_1_exact_norm = exact_H_1_norm)
 
 ##----------------------Training------------------##
 
-loss_evolution = []
+loss_relative_error = []
+H_1_relative_error = []
 
 print(f"{'='*30} Training {'='*30}")
-
 for epoch in range(epochs):
     current_time = datetime.now().strftime("%H:%M:%S")
     print(f"{'='*20} [{current_time}] Epoch:{epoch + 1}/{epochs} {'='*20}")
-    res_value = res.residual_value_IVP()
-    print(f"Loss: {res_value.item():.8f}")
+    
+    res_value, H_1_error = res.residual_value_IVP(compute_error = True)
+    
+    res_error = torch.sqrt(res_value)/exact_H_1_norm
+    
+    print(f"Loss: {res_error.item():.8f} H^1 norm:{H_1_error.item():.8f}")
+    
     NN.optimizer_step(res_value)
-    loss_evolution.append(res_value.item())
-        
+    
+    loss_relative_error.append(res_error.item())
+    H_1_relative_error.append(H_1_error.item())
+
+
+solution = NN.evaluate
+
+ 
 ##----------------------Plotting------------------##
 
-def exact_solution(x):
-    return torch.concat([torch.sin(x),torch.cos(x)], dim = 1)
+plot_points = torch.linspace(domain[0],
+                             domain[1],
+                             1000,
+                             requires_grad = False).unsqueeze(1)
 
-plt = Plotting(NN.evaluate, domain, exact_solution, loss_evolution=loss_evolution)
+NN_evaluation = solution(plot_points)
+exact_evalution = exact_solution(plot_points)
 
-plt.plot_IVP()
+solution_labels = [r"$u_1$", r"$u_2$"]
+solution_colors = ["blue", "red"]
+NN_labels = [r"$u^{\theta}_1$", r"$u^{\theta}_2$"]
+NN_colors = ["orange", "purple"]
+NN_linestyle = [":", "-."]
+
+NN_evaluation = NN_evaluation.cpu().detach().numpy()
+exact_evaluation = exact_evalution.cpu().detach().numpy()
+plot_points = plot_points.cpu().detach().numpy()
+
+figure_solution, axis_solution = subplots(dpi=500,
+                                          figsize=(12, 8))
+
+for i in range(len(exact_evaluation[1,:])):
+    
+    axis_solution.plot(plot_points,
+                       exact_evaluation[:,i],
+                       label = solution_labels[i],
+                       color = solution_colors[i],
+                       alpha= 0.6)
+
+for i in range(len(NN_evaluation[1,:])):
+    
+    axis_solution.plot(plot_points,
+                       NN_evaluation[:,i],
+                       label = NN_labels[i],
+                       color = NN_colors[i],
+                       linestyle = NN_linestyle[i])
+    
+axis_solution.set(title="VPINNs final solution", xlabel="t", ylabel="u (t)")
+axis_solution.legend()
+    
+figure_loss, axis_loss = subplots(dpi=500,
+                                  figsize=(12,8))
+
+figure_loglog, axis_loglog = subplots(dpi=500,
+                                  figsize=(12,8))
+
+axis_loss.semilogy(loss_relative_error, label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{H^1(\Omega)}}$")
+axis_loss.semilogy(H_1_relative_error, label = r"$\frac{\|u-u_\theta\|_{H^1(\Omega)}}{\|u\|_{H^1(\Omega)}}$")
+axis_loss.set(title="Loss evolution",
+              xlabel="# epochs", 
+              ylabel="Loss")
+axis_loss.legend()
+
+axis_loglog.loglog(loss_relative_error,
+                   H_1_relative_error)
 
 torch.cuda.empty_cache()
