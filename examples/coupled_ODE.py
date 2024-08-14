@@ -1,0 +1,124 @@
+import sys
+import torch
+from datetime import datetime
+
+sys.path.insert(0, "../src/")
+sys.path.insert(1, "../utils/")
+torch.cuda.init() 
+torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
+torch.cuda.empty_cache()
+torch.set_default_dtype(torch.float64)
+
+from Neural_Network import Neural_Network
+from Quadrature_Rule import Quadrature_Rule
+from Residual import Residual
+from Plotting import Plotting
+from RK4 import RK4
+
+##----------------------Neural Network Parameters------------------##
+
+input_dimension = 1
+output_dimension = 2
+deep_layers = 5
+hidden_layers_dimension = 50
+
+##----------------------Training Parameters------------------##
+
+batch_size = 100
+epochs = 12000
+learning_rate = 0.00005
+optimizer = "Adam" # Adam or SGD
+
+##----------------------ODE Parameters------------------##
+
+domain = (0, 50)
+
+initial_points = torch.tensor([0.0, 0.0], requires_grad = False).unsqueeze(1)
+initial_values = torch.tensor([1.0, 0.5], requires_grad = False).unsqueeze(1)
+
+collocation_points = torch.linspace(domain[0], 
+                                    domain[1], 
+                                    batch_size, 
+                                    requires_grad = False).unsqueeze(1)
+
+mu_max = 2.7
+K = 0.274
+D = 0.33
+s_in = 10
+
+parameters = [mu_max, K, D, s_in]
+
+def governing_equations(times, values, parameters):
+    
+    mu_max, K, D, s_in = parameters
+    
+    x, s = torch.split(values, 1 , dim = 1)
+    
+    f_1 = (mu_max * s * x) / (s + K) - D * x
+    f_2 = (s_in - s) * D - (mu_max * s * x) / (s + K)
+
+    return torch.concat([f_1,f_2], dim = 1)
+
+##-------------------Residual Parameters---------------------##
+
+constrain_parameter = 20
+
+gram_matrix_inv = torch.tensor([[4.0, -2.0], 
+                                [-2.0, 4.0]], 
+                               requires_grad = False)
+
+gram_boundary_matrix = torch.eye(output_dimension)
+
+##-------------------Initialization---------------------##
+
+print("Initializating Neural Network...")
+
+NN = Neural_Network(input_dimension = input_dimension, 
+                    output_dimension = output_dimension, 
+                    deep_layers = deep_layers, 
+                    hidden_layers_dimension = hidden_layers_dimension,
+                    optimizer = "Adam",
+                    learning_rate = learning_rate)
+
+print("Initializating Quadrature Rule...")
+
+quad = Quadrature_Rule(collocation_points = collocation_points)
+
+print("Initializating Residual...")
+
+res = Residual(model_evaluation = NN.model_evaluation,
+               quadrature_rule = quad,
+               gram_elemental_inv_matrix = gram_matrix_inv,
+               gram_boundary_inv_matrix = gram_boundary_matrix,
+               governing_equations = governing_equations,
+               initial_points = initial_points,
+               initial_values = initial_values,
+               governing_equations_parameters = parameters,
+               constrain_parameter= constrain_parameter)
+
+##----------------------Training------------------##
+
+loss_evolution = []
+
+print(f"{'='*30} Training {'='*30}")
+
+for epoch in range(epochs):
+    current_time = datetime.now().strftime("%H:%M:%S")
+    print(f"{'='*20} [{current_time}] Epoch:{epoch + 1}/{epochs} {'='*20}")
+    res_value = res.residual_value_IVP()
+    print(f"Loss: {res_value.item():.8f}")
+    NN.optimizer_step(res_value)
+    loss_evolution.append(res_value.item())
+        
+##----------------------Plotting------------------##
+
+exact_solution = lambda x: RK4(function = governing_equations, 
+                              initial_value = initial_values.T, 
+                              collocation_points = x, 
+                              parameters = parameters)
+
+plt = Plotting(NN.evaluate, domain, exact_solution, loss_evolution=loss_evolution)
+
+plt.plot_IVP()
+
+torch.cuda.empty_cache()

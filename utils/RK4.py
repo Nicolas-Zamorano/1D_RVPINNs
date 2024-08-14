@@ -20,9 +20,8 @@ def RK4(function, initial_value, collocation_points, parameters):
     
     N = len(collocation_points)
     
-    
     for i in range(1, N):
-        print(f"\rComputing Exact Solution: {i} of {N}", end='',flush = True)
+        print(f"\rComputing Exact Solution: {i+1} of {N}", end='',flush = True)
         
         t_prev = collocation_points[i-1]
         t_next = collocation_points[i]
@@ -40,5 +39,4 @@ def RK4(function, initial_value, collocation_points, parameters):
         
     print("")
 
-   
     return solution_values
