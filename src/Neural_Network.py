@@ -34,7 +34,7 @@ class Neural_Network(torch.nn.Module):
         self.activation_function = activation_function
         
         self.evaluate = torch.func.vmap(self.forward)  
-        self.jacobian = torch.func.vmap(torch.func.jacrev(self.forward)) 
+        self.jacobian = torch.func.vmap(torch.func.jacrev(self.forward))
         
         self.optimizer_name = optimizer  
         self.learning_rate = learning_rate  
@@ -63,28 +63,6 @@ class Neural_Network(torch.nn.Module):
         
         return self.layer_out(output)
 
-    def model_evaluation(self, 
-                         evaluation_points: torch.Tensor, 
-                         initial_points: torch.Tensor):
-        """
-        Evaluate the model and compute the Jacobian.
-
-        Parameters:
-        - evaluation_points (torch.Tensor): Nodes for model evaluation.
-        - initial_points (torch.Tensor): Initial points for model evaluation.
-
-        Returns:
-        - NN_evaluation (torch.Tensor): Model evaluation at the given nodes.
-        - NN_initial_values (torch.Tensor): Initial values of the model.
-        - jacobian_values (torch.Tensor): Jacobian evaluation at the given nodes.
-        """
-        NN_evaluation = self.evaluate(evaluation_points)  
-        NN_initial_values = torch.diagonal(self.evaluate(initial_points), dim1=-2, dim2=-1).unsqueeze(1) 
-        
-        jacobian_values = self.jacobian(evaluation_points).squeeze(2)  
-        
-        return NN_evaluation, NN_initial_values, jacobian_values
-        
     def optimizer_step(self, 
                        loss_value: torch.Tensor):
         """
