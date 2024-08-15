@@ -69,39 +69,6 @@ class Residual:
         
             self.gram_elemental_inv_matrix = (1/max(self.quadrature_rule.elements_diameter)) * gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
-            
-    def H_1_norm(self):
-        
-        
-        NN_evaluation = self.error_quad.interpolate(self.neural_network.evaluate)
-        NN_jacobian_evaluation = self.error_quad.interpolate(self.neural_network.jacobian).squeeze(2)
-        NN_initial_value_evalution = self.error_quad.interpolate_boundary(self.neural_network.evaluate)
-        
-        x_exact, y_exact = torch.split(self.exact_evaluation,
-                                       1,
-                                       dim = 1)
-        
-        x, y = torch.split(NN_evaluation, 
-                           1, 
-                           dim = 1)
-        
-        L_2_norm = torch.sum(torch.sqrt(self.error_quad.integrate((x_exact-x)**2, multiply_by_test = False)) + torch.sqrt(self.error_quad.integrate((y_exact-y)**2,multiply_by_test = False)))
-        
-        dx_exact, dy_exact = torch.split(self.exact_jacobian_evaluation,
-                                         1,
-                                         dim = 1)
-        
-        dx, dy = torch.split(NN_jacobian_evaluation,
-                             1,
-                             dim = 1)
-        
-        initial_value_norm = torch.sum((NN_initial_value_evalution - self.initial_values)**2)
-        
-        L_2_jacobian_norm = torch.sum(self.error_quad.integrate((dx_exact-dx)**2, multiply_by_test = False) + self.error_quad.integrate((dy_exact-dy)**2, multiply_by_test = False))
-        
-        H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm+initial_value_norm)/self.H_1_exact_norm
-                
-        return H_1_norm
         
     def residual_value_IVP(self, 
                            compute_error: bool = False):
@@ -121,7 +88,7 @@ class Residual:
         governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
                                                                                                   NN_evaluation,
                                                                                                   self.governing_equations_parameters))
-        
+    
         dx, dy = torch.split(NN_jacobian_evaluation, 1, dim = 1)
         f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)
         

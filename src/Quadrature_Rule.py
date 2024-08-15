@@ -138,3 +138,24 @@ class Quadrature_Rule:
         
         return integral_value
     
+    def H_1_norm(self, 
+                 function: Callable = None, 
+                 jacobian: Callable = None,
+                 function_evaluation: torch.Tensor = None,
+                 jacobian_evalution: torch.Tensor = None,
+                 boundary_evaluation: torch.Tensor = None,
+                 ):
+        
+        if function != None and jacobian != None:
+        
+            function_evaluation = self.interpolate(function)
+            jacobian_evalution = self.interpolate(jacobian)
+            boundary_evaluation = self.interpolate_boundary(function)
+            
+        L_2_norm = self.integrate(function_evaluation**2)
+        L_2_jacobian_norm = self.integrate(jacobian_evalution**2)
+        boundary_norm = self.integrate(boundary_evaluation**2)
+        
+        H_1_norm = torch.sum(torch.sqrt(L_2_norm + L_2_jacobian_norm + boundary_norm))
+        
+        return H_1_norm

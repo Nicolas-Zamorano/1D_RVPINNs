@@ -1,7 +1,7 @@
 import sys
 import torch
-from numpy import pi
 from datetime import datetime
+from numpy import pi 
 from matplotlib.pyplot import subplots
 
 sys.path.insert(0, "../src/")
@@ -47,6 +47,8 @@ collocation_points = torch.linspace(domain[0],
                                     batch_size, 
                                     requires_grad = False).unsqueeze(1)
 
+parameters = None
+
 def governing_equations(times, values, parameters):
     
     x, y = torch.split(values, 1 , dim = 1)
@@ -63,18 +65,22 @@ quad = Quadrature_Rule(collocation_points = collocation_points,
 ##----------------------Posteriori Error------------------##
 
 def exact_solution(x):
-    return torch.concat([torch.cos(x),torch.sin(x)], dim = 1)
-
-
-exact_evalution = quad.interpolate(exact_solution)
+    return torch.concat([torch.cos(x),
+                         torch.sin(x)], 
+                        dim = 1)
 
 def exact_jacobian_solution(x):
-    return governing_equations(x, exact_evalution, None)
+    return governing_equations(x, 
+                               exact_evaluation, 
+                               parameters)
+
+exact_evaluation = quad.interpolate(exact_solution)
+
 
 exact_jacobian_evaluation = quad.interpolate(lambda x: governing_equations(x, 
-                                                                           exact_evalution, 
-                                                                           parameters = None))
-x_exact, y_exact = torch.split(exact_evalution,
+                                                                           exact_evaluation, 
+                                                                           parameters = parameters))
+x_exact, y_exact = torch.split(exact_evaluation,
                                1,
                                dim = 1)
 
@@ -93,7 +99,7 @@ exact_H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + L_2_boundary_norm)
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 0.1
+constrain_parameter = 1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
@@ -106,13 +112,14 @@ res = Residual(neural_network = NN,
                gram_elemental_inv_matrix = gram_matrix_inv,
                gram_boundary_inv_matrix = gram_boundary_matrix,
                governing_equations = governing_equations,
+               governing_equations_parameters = parameters,
                initial_points = initial_points,
                initial_values = initial_values,
                constrain_parameter= constrain_parameter,
                compute_relative_error = True,
                error_quad = quad,
-               exact_solution = exact_solution,
-               exact_jacobian_solution = exact_jacobian_solution,
+               exact_evaluation = exact_evaluation,
+               exact_jacobian_evaluation = exact_jacobian_evaluation,
                H_1_exact_norm = exact_H_1_norm)
 
 ##----------------------Training------------------##
@@ -136,10 +143,8 @@ for epoch in range(epochs):
     loss_relative_error.append(res_error.item())
     H_1_relative_error.append(H_1_error.item())
 
-
 solution = NN.evaluate
 
- 
 ##----------------------Plotting------------------##
 
 plot_points = torch.linspace(domain[0],

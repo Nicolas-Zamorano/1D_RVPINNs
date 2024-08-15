@@ -18,8 +18,8 @@ from RK4 import RK4
 
 input_dimension = 1
 output_dimension = 2
-deep_layers = 10
-hidden_layers_dimension = 1000
+deep_layers = 8
+hidden_layers_dimension = 50
 
 ##----------------------Training Parameters------------------##
 
@@ -79,7 +79,7 @@ def exact_solution(x):
 
 def exact_jacobian_solution(x):
     return governing_equations(x, 
-                               exact_evalution, 
+                               exact_evaluation, 
                                parameters)
 
 exact_evaluation = quad.interpolate(exact_solution)
@@ -107,7 +107,7 @@ exact_H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + L_2_boundary_norm)
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 0.1
+constrain_parameter = 1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
