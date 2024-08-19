@@ -24,7 +24,7 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 12000
+epochs = 15000
 learning_rate = 0.00002
 optimizer = "Adam" # Adam or SGD
 
@@ -58,9 +58,8 @@ def governing_equations(times, values, parameters):
 
     return torch.concat([f_1,f_2], dim = 1)
 
-
 quad = Quadrature_Rule(collocation_points = collocation_points,
-                       initial_points = initial_points)
+                       boundary_points = initial_points)
 
 ##----------------------Posteriori Error------------------##
 
@@ -76,26 +75,19 @@ def exact_jacobian_solution(x):
 
 exact_evaluation = quad.interpolate(exact_solution)
 
+x_exact, y_exact = torch.split(exact_evaluation, 1, dim = 1)
 
 exact_jacobian_evaluation = quad.interpolate(lambda x: governing_equations(x, 
                                                                            exact_evaluation, 
                                                                            parameters = parameters))
-x_exact, y_exact = torch.split(exact_evaluation,
-                               1,
-                               dim = 1)
 
-dx_exact, dy_exact = torch.split(exact_jacobian_evaluation,
-                                 1,
-                                 dim = 1)
+dx_exact, dy_exact = torch.split(exact_evaluation, 1, dim = 1)
 
-L_2_norm = torch.sum((quad.integrate(x_exact**2+y_exact**2)))
+error = quad.integrate(dx_exact + y_exact) + quad.integrate 
 
-L_2_jacobian_norm = torch.sum((quad.integrate(dx_exact**2+dy_exact**2)))
-
-L_2_boundary_norm = torch.sum((initial_values**2))
-
-exact_H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + L_2_boundary_norm)
-
+exact_H_1_norm = quad.H_1_norm(function_evaluation = torch.zeros_like(exact_evaluation),
+                               jacobian_evalution = torch.zeros_like(exact_jacobian_evaluation),
+                               boundary_evaluation = initial_values)
 
 ##-------------------Residual Parameters---------------------##
 
@@ -115,12 +107,7 @@ res = Residual(neural_network = NN,
                governing_equations_parameters = parameters,
                initial_points = initial_points,
                initial_values = initial_values,
-               constrain_parameter= constrain_parameter,
-               compute_relative_error = True,
-               error_quad = quad,
-               exact_evaluation = exact_evaluation,
-               exact_jacobian_evaluation = exact_jacobian_evaluation,
-               H_1_exact_norm = exact_H_1_norm)
+               constrain_parameter= constrain_parameter)
 
 ##----------------------Training------------------##
 
@@ -132,11 +119,21 @@ for epoch in range(epochs):
     current_time = datetime.now().strftime("%H:%M:%S")
     print(f"{'='*20} [{current_time}] Epoch:{epoch + 1}/{epochs} {'='*20}")
     
-    res_value, H_1_error = res.residual_value_IVP(compute_error = True)
+    res_value = res.residual_value_IVP()
+    
+    eval_error = quad.interpolate(NN.evaluate) - exact_evaluation
+    
+    jac_error = quad.interpolate(NN.jacobian).squeeze(-1) - exact_jacobian_evaluation
+    
+    initial_error = quad.interpolate_boundary(NN.evaluate) - initial_values
+    
+    H_1_error = quad.H_1_norm(function_evaluation = eval_error,
+                              jacobian_evalution = jac_error,
+                              boundary_evaluation = initial_error)/exact_H_1_norm
     
     res_error = torch.sqrt(res_value)/exact_H_1_norm
     
-    print(f"Loss: {res_error.item():.8f} H^1 norm:{H_1_error.item():.8f}")
+    print(f"Loss: {res_value.item():.8f} Relative Loss: {res_error.item():.8f} H^1 norm:{H_1_error.item():.8f}")
     
     NN.optimizer_step(res_value)
     
@@ -147,13 +144,7 @@ solution = NN.evaluate
 
 ##----------------------Plotting------------------##
 
-plot_points = torch.linspace(domain[0],
-                             domain[1],
-                             1000,
-                             requires_grad = False).unsqueeze(1)
-
-NN_evaluation = solution(plot_points)
-exact_evalution = exact_solution(plot_points)
+NN_evaluation = quad.interpolate(solution)
 
 solution_labels = [r"$u_1$", r"$u_2$"]
 solution_colors = ["blue", "red"]
@@ -162,8 +153,8 @@ NN_colors = ["orange", "purple"]
 NN_linestyle = [":", "-."]
 
 NN_evaluation = NN_evaluation.cpu().detach().numpy()
-exact_evaluation = exact_evalution.cpu().detach().numpy()
-plot_points = plot_points.cpu().detach().numpy()
+exact_evaluation = exact_evaluation.cpu().detach().numpy()
+plot_points = quad.mapped_integration_nodes_single_dimension.cpu().detach().numpy()
 
 figure_solution, axis_solution = subplots(dpi=500,
                                           figsize=(12, 8))

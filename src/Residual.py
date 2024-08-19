@@ -28,12 +28,7 @@ class Residual:
                  initial_points: torch.Tensor,               
                  initial_values: torch.Tensor,
                  governing_equations_parameters: list = None,
-                 constrain_parameter: float = 0.5,
-                 compute_relative_error: bool = False,
-                 error_quad: Quadrature_Rule = None,
-                 exact_evaluation: Callable = None,
-                 exact_jacobian_evaluation: Callable = None, 
-                 H_1_exact_norm: torch.Tensor = None):
+                 constrain_parameter: float = 0.5):
             
         self.neural_network = neural_network
         self.quadrature_rule = quadrature_rule
@@ -44,15 +39,7 @@ class Residual:
         self.constrain_parameter = constrain_parameter
         self.update_gram_matrix(gram_elemental_inv_matrix, 
                                 gram_boundary_inv_matrix)
-        self.compute_relative_error = compute_relative_error
-        
-        if (self.compute_relative_error == True):
-            self.error_quad = error_quad
-            self.exact_evaluation = exact_evaluation
-            self.exact_jacobian_evaluation = exact_jacobian_evaluation
-            self.H_1_exact_norm = H_1_exact_norm
-            
-            
+
     def update_gram_matrix(self, 
                            gram_elemental_inv_matrix: torch.Tensor, 
                            gram_boundary_inv_matrix: torch.Tensor):
@@ -70,41 +57,44 @@ class Residual:
             self.gram_elemental_inv_matrix = (1/max(self.quadrature_rule.elements_diameter)) * gram_elemental_inv_matrix
             self.gram_boundary_inv_matrix = gram_boundary_inv_matrix
         
-    def residual_value_IVP(self, 
-                           compute_error: bool = False):
+    def residual_value_IVP(self):
         """
         Compute the residual value for a Initial Value Problem (IVP).
         
         Returns:
         - loss_value (torch.Tensor): The computed loss value.
-        - compute_error (bool): compute_error
         """
         print("Computing Residual Value...")
         
         NN_evaluation = self.quadrature_rule.interpolate(self.neural_network.evaluate)
-        NN_jacobian_evaluation = self.quadrature_rule.interpolate(self.neural_network.jacobian)
+        NN_jacobian_evaluation = self.quadrature_rule.interpolate(self.neural_network.jacobian).squeeze(-1)
         NN_initial_value_evalution = self.quadrature_rule.interpolate_boundary(self.neural_network.evaluate)
         
         governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
                                                                                                   NN_evaluation,
                                                                                                   self.governing_equations_parameters))
-    
-        dx, dy = torch.split(NN_jacobian_evaluation, 1, dim = 1)
-        f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)
+
+        # dx, dy = torch.split(NN_jacobian_evaluation, 1, dim = 1)
+        # f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)
         
         constrain_vector = NN_initial_value_evalution - self.initial_values
+                
+        # residual_x_vector = self.quadrature_rule.integrate(dx - f_1, multiply_by_test = True)
+        # residual_y_vector = self.quadrature_rule.integrate(dy - f_2 , multiply_by_test= True)
         
-        residual_x_vector = self.quadrature_rule.integrate(f_1) - self.quadrature_rule.integrate(dx)
-        residual_y_vector = self.quadrature_rule.integrate(f_2) - self.quadrature_rule.integrate(dy)
+        # residual_vector = torch.concat([residual_x_vector,
+        #                                 residual_y_vector], dim=0)
         
-        residual_vector = torch.concat([residual_x_vector,
-                                        residual_y_vector], dim=0)
-                        
+        
+        
+        residual_vector = self.quadrature_rule.integrate(NN_jacobian_evaluation - governing_equations_evaluation, multiply_by_test= True).reshape(-1,2)
+                
         residual_value = torch.sum(residual_vector * torch.matmul(residual_vector, 
                                                                   self.gram_elemental_inv_matrix), 
                                    dim = 1, 
                                    keepdim = True)
 
+        
         
         # Use this code if gram_elemental_inv_matrix are diferent for each subinterval
         #
@@ -121,10 +111,15 @@ class Residual:
                                                                             keepdim = True),
                                                                   constrain_vector)
         
+        
+        loss_vector = torch.concat([residual_value, constrain_value], dim = 0)
+        
         loss = torch.nn.L1Loss(reduction='sum')
         
-        res_value = loss(torch.concat([residual_value, constrain_value], dim = 0),
-                    torch.zeros(residual_value.size(0) + constrain_value.size(0),requires_grad = False))
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
+
         
         if(compute_error == True):
         

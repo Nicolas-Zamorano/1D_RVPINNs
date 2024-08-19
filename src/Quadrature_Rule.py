@@ -69,9 +69,9 @@ class Quadrature_Rule:
             
             self.nb_subintervals = self.elements_diameter.size(0)
             self.nb_weights = self.mapped_weights.size(1)
-            self.polynomial_evaluations()
+            self.update_polynomial_evaluations()
         
-    def polynomial_evaluations(self):
+    def update_polynomial_evaluations(self):
         """
         Evaluate polynomials at the integration nodes.
         """
@@ -86,7 +86,7 @@ class Quadrature_Rule:
                 poly_eval_positive = (self.mapped_integration_nodes - self.collocation_points[:-1]) / self.elements_diameter
                 poly_eval_negative = (self.collocation_points[1:] - self.mapped_integration_nodes) / self.elements_diameter
                 
-                self.polynomial_evaluation = torch.stack([poly_eval_positive, poly_eval_negative], dim=0)
+                self.polynomial_evaluation = torch.stack([poly_eval_positive, poly_eval_negative], dim = 2).unsqueeze(2)
       
     def interpolate(self,
                     function):        
@@ -119,34 +119,35 @@ class Quadrature_Rule:
         return interpolation
 
     def integrate(self, 
-                  function: Callable = None,
-                  function_values: torch.Tensor = None, 
+                  function: Callable or torch.Tensor,
                   multiply_by_test: bool = False):
         """
         Perform integration using the quadrature rule.
         
         Parameters:
-        - function (Callable): Function to integrate (default is None).
-        - function_values (torch.Tensor): Function values at the integration nodes (default si None).
+        - function (Callable or torch.Tensor): Function to integrate or function values at the integration nodes.
         - multiply_by_test (bool): Multiply function values by test functions values (default is False).
         
         Returns:
         - torch.Tensor: The integral values in each subinterval of domain.
         """
-        if function != None:
+        if torch.is_tensor(function):
+            function_values = function
+            
+        else:
             function_values = self.interpolate(function)
                 
         function_values = function_values.view(self.nb_subintervals, 
-                                               self.nb_weights, 
+                                               self.nb_weights,
                                                function_values.size(1))    
         
         if multiply_by_test == True:
-            nodes_value = self.polynomial_evaluation * function_values
+            nodes_value = self.polynomial_evaluation * function_values.unsqueeze(-1)
 
         else:
-            nodes_value = function_values
+            nodes_value = function_values.unsqueeze(-1)
         
-        integral_value = torch.sum(self.mapped_weights * nodes_value, dim = 1)
+        integral_value = torch.sum(self.mapped_weights.unsqueeze(-1) * nodes_value, dim = 1)
         
         return integral_value
     
@@ -164,10 +165,10 @@ class Quadrature_Rule:
             jacobian_evalution = self.interpolate(jacobian)
             boundary_evaluation = self.interpolate_boundary(function)
             
-        L_2_norm = self.integrate(function_evaluation**2)
-        L_2_jacobian_norm = self.integrate(jacobian_evalution**2)
-        boundary_norm = self.integrate(boundary_evaluation**2)
+        L_2_norm = torch.sum(self.integrate(function_evaluation**2))
+        L_2_jacobian_norm = torch.sum(self.integrate(jacobian_evalution**2))
+        boundary_norm = torch.sum(boundary_evaluation**2)
         
-        H_1_norm = torch.sum(torch.sqrt(L_2_norm + L_2_jacobian_norm + boundary_norm))
+        H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + boundary_norm)
         
         return H_1_norm

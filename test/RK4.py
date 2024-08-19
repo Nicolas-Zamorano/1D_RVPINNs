@@ -2,7 +2,6 @@ import sys
 import torch
 import matplotlib.pyplot as plt
 
-
 sys.path.insert(1, "../utils/")
 torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_dtype(torch.float64)
@@ -52,7 +51,6 @@ plt.plot(collocation_points_np, solution_np[:,0], label='x')
 plt.plot(collocation_points_np, solution_np[:,1], label='s')
 plt.legend()
 plt.show()
-
 
 # def lotka_volterra(times, values, parameters):
     
