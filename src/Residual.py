@@ -123,15 +123,40 @@ class Residual:
         
         loss = torch.nn.L1Loss(reduction='sum')
         
+<<<<<<< Updated upstream
         res_value = loss(torch.concat([residual_value, constrain_value], dim = 0),
                     torch.zeros(residual_value.size(0) + constrain_value.size(0),requires_grad = False))
+=======
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
+
+    def PINNs_residual_IVP(self):
+        """
+        Compute the PINNs residual value for a Initial Value Problem (IVP).
+>>>>>>> Stashed changes
         
-        if(compute_error == True):
+        Returns:
+        - loss_value (torch.Tensor): The computed loss value.
+        """
+        print("Computing Residual Value...")
         
-            H_1_error = self.H_1_norm()
-            
-            return res_value, H_1_error
+        NN_evaluation = self.quadrature_rule.interpolate(self.neural_network.evaluate)
+        NN_jacobian_evaluation = self.quadrature_rule.interpolate(self.neural_network.jacobian).squeeze(-1)
+        NN_initial_value_evalution = self.quadrature_rule.interpolate_boundary(self.neural_network.evaluate)
         
-        else:
+        governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
+                                                                                                  NN_evaluation,
+                                                                                                  self.governing_equations_parameters))
         
-            return res_value
+        constrain_vector = NN_initial_value_evalution - self.initial_values
+
+        residual_vector = NN_jacobian_evaluation - governing_equations_evaluation
+                        
+        loss_vector = torch.concat([residual_vector, constrain_vector.view(1,2)], dim = 0)
+        
+        loss = torch.nn.MSELoss()
+        
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
