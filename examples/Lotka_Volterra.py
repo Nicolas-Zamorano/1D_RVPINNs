@@ -19,12 +19,12 @@ from RK4 import RK4
 input_dimension = 1
 output_dimension = 2
 deep_layers = 10
-hidden_layers_dimension = 100
+hidden_layers_dimension = 200
 
 ##----------------------Training Parameters------------------##
 
-batch_size = 10000
-epochs = 12000
+batch_size = 5000
+epochs = 1000
 learning_rate = 0.5
 optimizer = "Adam" # Adam or SGD
 
@@ -206,4 +206,3 @@ axis_loglog.loglog(loss_relative_error,
                    H_1_relative_error)
 
 torch.cuda.empty_cache()
-

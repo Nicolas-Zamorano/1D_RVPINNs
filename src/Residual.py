@@ -119,14 +119,80 @@ class Residual:
         res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
                 
         return res_value
+    
+    def residual_value_IVP_2_NN(self):
+        """
+        Compute the residual value for a Initial Value Problem (IVP).
+        
+        Returns:
+        - loss_value (torch.Tensor): The computed loss value.
+        """
+        print("Computing Residual Value...")
+        
+        x = self.quadrature_rule.interpolate(self.neural_network[0].evaluate)
+        y = self.quadrature_rule.interpolate(self.neural_network[1].evaluate)
+        
+        NN_evaluation = torch.concat([x,y], dim = 1)
+        
+        dx = self.quadrature_rule.interpolate(self.neural_network[0].jacobian).squeeze(-1)
+        dy = self.quadrature_rule.interpolate(self.neural_network[1].jacobian).squeeze(-1)
+        
+        NN_jacobian_evaluation = torch.concat([dx, dy], dim = 1)
+        
+        x_initial_evaluation = self.neural_network[0].evaluate(self.initial_points[0].unsqueeze(1))
+        y_initial_evaluation = self.neural_network[1].evaluate(self.initial_points[1].unsqueeze(1))
+        
+        NN_initial_value_evalution = torch.concat([x_initial_evaluation, y_initial_evaluation], dim = 0)
+        
+        governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
+                                                                                                  NN_evaluation,
+                                                                                                  self.governing_equations_parameters))
+
+        # dx, dy = torch.split(NN_jacobian_evaluation, 1, dim = 1)
+        # f_1, f_2 = torch.split(governing_equations_evaluation, 1, dim = 1)
+        
+        constrain_vector = NN_initial_value_evalution - self.initial_values
+                
+        # residual_x_vector = self.quadrature_rule.integrate(dx - f_1, multiply_by_test = True)
+        # residual_y_vector = self.quadrature_rule.integrate(dy - f_2 , multiply_by_test= True)
+        
+        # residual_vector = torch.concat([residual_x_vector,
+        #                                 residual_y_vector], dim=0)
+        
+        
+        
+        residual_vector = self.quadrature_rule.integrate(NN_jacobian_evaluation - governing_equations_evaluation, multiply_by_test= True).reshape(-1,2)
+                
+        residual_value = torch.sum(residual_vector * torch.matmul(residual_vector, 
+                                                                  self.gram_elemental_inv_matrix), 
+                                   dim = 1, 
+                                   keepdim = True)
 
         
-        if(compute_error == True):
         
-            H_1_error = self.H_1_norm()
-            
-            return res_value, H_1_error
+        # Use this code if gram_elemental_inv_matrix are diferent for each subinterval
+        #
+        #x_A = torch.zeros(residual_vector.size())
+        #residual_value = torch.zeros(residual_vector.size(0))
+        #
+        # for i in range(residual_vector.size(0)):
+        #     x_A[i] = torch.matmul(residual_vector[i, :], self.gram_elemental_inv_matrix)
+        #     residual_value[i] = torch.matmul(x_A[i], residual_vector[i].unsqueeze(0).T.detach().clone())
+        #     print(f"\rComputing Residual Value: Processing {i + 1} of {residual_vector.size(0)}", end='', flush=True)
         
-        else:
+        constrain_value = self.constrain_parameter * torch.matmul(torch.sum(constrain_vector * self.gram_boundary_inv_matrix,
+                                                                            dim = 0, 
+                                                                            keepdim = True),
+                                                                  constrain_vector)
         
-            return res_value
+        
+        loss_vector = torch.concat([residual_value, constrain_value], dim = 0)
+        
+        loss = torch.nn.L1Loss(reduction='sum')
+        
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
+
+
+        
