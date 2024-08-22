@@ -123,10 +123,8 @@ class Residual:
         
         loss = torch.nn.L1Loss(reduction='sum')
         
-<<<<<<< Updated upstream
-        res_value = loss(torch.concat([residual_value, constrain_value], dim = 0),
-                    torch.zeros(residual_value.size(0) + constrain_value.size(0),requires_grad = False))
-=======
+        loss_vector = torch.concat([residual_value, constrain_value], dim = 0)
+
         res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
                 
         return res_value
@@ -156,6 +154,27 @@ class Residual:
         loss_vector = torch.concat([residual_vector, constrain_vector.view(1,2)], dim = 0)
         
         loss = torch.nn.MSELoss()
+        
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
+    
+    def residual_euler(self,h):
+        
+        NN_evaluation = self.quadrature_rule.interpolate(self.neural_network.evaluate)
+        NN_initial_value_evalution = self.quadrature_rule.interpolate_boundary(self.neural_network.evaluate)
+        
+        governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
+                                                                                                  NN_evaluation,
+                                                                                                  self.governing_equations_parameters))
+        
+        constrain_vector = NN_initial_value_evalution - self.initial_values
+        
+        residual_vector = NN_evaluation[1:] - NN_evaluation[:-1] - h * governing_equations_evaluation[1:]
+        
+        loss_vector = torch.concat([residual_vector, constrain_vector.view(1,2)], dim = 0)
+        
+        loss = torch.nn.MSELoss(reduction="sum")
         
         res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
                 
