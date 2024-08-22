@@ -55,9 +55,7 @@ class Quadrature_Rule:
                 self.mapped_weights = (0.5 * self.elements_diameter * self.integration_weights.T).unsqueeze(-1)
                 self.mapped_integration_nodes = 0.5 * self.elements_diameter * self.integration_nodes.T + 0.5 * self.sum_collocation_points
                 self.mapped_integration_nodes_single_dimension = self.mapped_integration_nodes.view(-1,1)
-                
-
-                
+     
             if self.quadrature_rule_name == "Trapezoid":
                 self.collocation_points = collocation_points
                 

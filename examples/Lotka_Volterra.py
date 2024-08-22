@@ -18,14 +18,14 @@ from RK4 import RK4
 
 input_dimension = 1
 output_dimension = 2
-deep_layers = 10
-hidden_layers_dimension = 100
+deep_layers = 5
+hidden_layers_dimension = 25
 
 ##----------------------Training Parameters------------------##
 
-batch_size = 10000
-epochs = 12000
-learning_rate = 0.5
+batch_size = 1000
+epochs = 2000
+learning_rate = 0.005
 optimizer = "Adam" # Adam or SGD
 
 NN = Neural_Network(input_dimension = input_dimension, 
@@ -37,17 +37,17 @@ NN = Neural_Network(input_dimension = input_dimension,
 
 ##----------------------ODE Parameters------------------##
 
-domain = (0.0, 25.0)
+domain = (0.0, 5.0)
 
-alpha = 0.1
-beta = 0.05
-gamma = 1.1
-delta = 0.1
+alpha = 1.0
+beta = 0.1
+gamma = 1.5
+delta = 0.075
 
 parameters = [alpha, beta, gamma, delta]
 
 initial_points = torch.tensor([0.0, 0.0], requires_grad = False).unsqueeze(1)
-initial_values = torch.tensor([5.0, 1.0], requires_grad = False).unsqueeze(1)
+initial_values = torch.tensor([40.0, 9.0], requires_grad = False).unsqueeze(1)
 
 collocation_points = torch.linspace(domain[0], 
                                     domain[1], 
@@ -104,7 +104,7 @@ exact_H_1_norm = quad.H_1_norm(function_evaluation = exact_evaluation,
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 5
+constrain_parameter = 0.1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
