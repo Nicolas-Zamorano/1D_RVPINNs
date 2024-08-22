@@ -53,6 +53,8 @@ optimizer = torch.optim.Adam([{'params': NN_1.parameters()},
 
 domain = (0.0, 2*pi)
 
+parameters = None
+
 initial_points = torch.tensor([0.0, 0.0], requires_grad = False).unsqueeze(1)
 initial_values = torch.tensor([1.0, 0.0], requires_grad = False).unsqueeze(1)
 
@@ -61,7 +63,6 @@ collocation_points = torch.linspace(domain[0],
                                     batch_size, 
                                     requires_grad = False).unsqueeze(1)
 
-parameters = None
 
 def governing_equations(times, values, parameters):
     
@@ -111,7 +112,6 @@ gram_matrix_inv = torch.tensor([[4.0, -2.0],
                                 [-2.0, 4.0]], 
                                requires_grad = False)
 gram_boundary_matrix = torch.eye(2*output_dimension)
-
 
 res = Residual(neural_network = [NN_1, NN_2],
                quadrature_rule = quad,
