@@ -17,15 +17,15 @@ def polynomial(x:torch.Tensor):
 def poly_integral(x:torch.Tensor):
     return torch.pow(x[1:],6)-torch.pow(x[:-1],6)
 
-collocation_points = torch.linspace(-100,100, 100).unsqueeze(1)
+collocation_points = torch.linspace(1,10, 100).unsqueeze(1)
 
 quad = Quadrature_Rule(collocation_points)
 
 integral = poly_integral(collocation_points)
 
-integral_app = quad.integrate(polynomial, multiply_by_test = True)
+integral_app =  torch.sum(quad.integrate(polynomial, multiply_by_test = True), dim = -1)
 
-max_error = max(abs(integral-integral_app.squeeze(-1))/integral)
+max_error = max(abs(integral-integral_app)/integral)
 
 """2° Test: By means of Fundamental Theorem of Calculus, integral of jacobian is NN evalued in boundary of the integration interval."""
 
@@ -42,10 +42,9 @@ NN_quad = Quadrature_Rule(NN_collocation_points)
 
 NN_integral = NN_exact(NN, NN_collocation_points)
 
-NN_integral_app = torch.sum(NN_quad.integrate(NN.jacobian), dim = -1)
+NN_integral_app = torch.sum(NN_quad.integrate(NN.jacobian, multiply_by_test = True), dim = -1)
 
-NN_max_error = torch.max((abs(NN_integral-NN_integral_app)/abs(NN_integral)))
+NN_max_error = torch.max((abs(NN_integral-NN_integral_app))/NN_integral)
 
 print("Relative error of 5th order polynomial:", max_error.item())
 print("Relative error of NN integration:      ", NN_max_error.item())
-
