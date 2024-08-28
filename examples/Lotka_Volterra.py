@@ -23,7 +23,7 @@ hidden_layers_dimension = 25
 
 ##----------------------Training Parameters------------------##
 
-batch_size = 1000
+batch_size = 100
 epochs = 2000
 learning_rate = 0.005
 optimizer = "Adam" # Adam or SGD
@@ -104,7 +104,7 @@ exact_H_1_norm = quad.H_1_norm(function_evaluation = exact_evaluation,
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 0.1
+constrain_parameter = 1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
@@ -127,6 +127,8 @@ res = Residual(neural_network = NN,
 loss_relative_error = []
 H_1_relative_error = []
 
+res_opt = 10e16
+
 print(f"{'='*30} Training {'='*30}")
 for epoch in range(epochs):
     current_time = datetime.now().strftime("%H:%M:%S")
@@ -146,18 +148,28 @@ for epoch in range(epochs):
     
     res_error = torch.sqrt(res_value)/exact_H_1_norm
     
+    if res_value < res_opt:
+        res_opt = res_value
+        params_opt = NN.state_dict()
+    
     print(f"Loss: {res_value.item():.8f} Relative Loss: {res_error.item():.8f} H^1 norm:{H_1_error.item():.8f}")
     
     NN.optimizer_step(res_value)
     
     loss_relative_error.append(res_error.item())
     H_1_relative_error.append(H_1_error.item())
+    
+NN.load_state_dict(params_opt)
 
 solution = NN.evaluate
 
 ##----------------------Plotting------------------##
 
-NN_evaluation = quad.interpolate(solution)
+plot_points = torch.linspace(domain[0],domain[1],1000).unsqueeze(1)
+
+NN_evaluation = solution(plot_points)
+
+exact_evaluation = exact_solution(plot_points)
 
 solution_labels = [r"$u_1$", r"$u_2$"]
 solution_colors = ["blue", "red"]
@@ -165,7 +177,9 @@ NN_labels = [r"$u^{\theta}_1$", r"$u^{\theta}_2$"]
 NN_colors = ["orange", "purple"]
 NN_linestyle = [":", "-."]
 
+plot_points = plot_points.cpu().detach().numpy()
 NN_evaluation = NN_evaluation.cpu().detach().numpy()
+exact_evaluation_np = exact_evaluation.cpu().detach().numpy()
 
 figure_solution, axis_solution = subplots(dpi=500,
                                           figsize=(12, 8))
