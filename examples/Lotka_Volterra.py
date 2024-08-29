@@ -24,8 +24,8 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 2000
-learning_rate = 0.005
+epochs = 6000
+learning_rate = 0.001
 optimizer = "Adam" # Adam or SGD
 
 NN = Neural_Network(input_dimension = input_dimension, 
@@ -70,6 +70,14 @@ quad = Quadrature_Rule(collocation_points = collocation_points,
 
 ##----------------------Posteriori Error------------------##
 
+collocation_points = torch.linspace(domain[0], 
+                                    domain[1], 
+                                    batch_size, 
+                                    requires_grad = False).unsqueeze(1)
+
+error_quad = Quadrature_Rule(collocation_points = collocation_points,
+                             boundary_points = initial_points)
+
 def exact_solution(x):
     return RK4(governing_equations, 
                initial_values.T,
@@ -81,34 +89,36 @@ def exact_jacobian_solution(x):
                                exact_evaluation, 
                                parameters)
 
-exact_evaluation = quad.interpolate(exact_solution)
+exact_evaluation = error_quad.interpolate(exact_solution)
 
 exact_evaluation_np = exact_evaluation.cpu().detach().numpy()
-plot_points = quad.mapped_integration_nodes_single_dimension.cpu().detach().numpy()
 
-figure_exact, axis_exact = subplots(dpi=500,
-                                          figsize=(12, 8))
+plot_points = error_quad.mapped_integration_nodes_single_dimension.cpu().detach().numpy()
 
-axis_exact.plot(plot_points, exact_evaluation_np)
+figure_exact, axis_exact = subplots(dpi = 500,
+                                    figsize=(12, 8))
+
+axis_exact.plot(plot_points, 
+                exact_evaluation_np)
 
 show()
 
-exact_jacobian_evaluation = quad.interpolate(lambda x: governing_equations(x, 
-                                                                           exact_evaluation, 
-                                                                           parameters = parameters))
+exact_jacobian_evaluation = error_quad.interpolate(lambda x: governing_equations(x,
+                                                                                 exact_evaluation,
+                                                                                 parameters = parameters))
 
-
-exact_H_1_norm = quad.H_1_norm(function_evaluation = exact_evaluation,
-                               jacobian_evalution = exact_jacobian_evaluation,
-                               boundary_evaluation = initial_values)
+exact_H_1_norm = error_quad.H_1_norm(function_evaluation = exact_evaluation,
+                                     jacobian_evalution = exact_jacobian_evaluation,
+                                     boundary_evaluation = initial_values)
 
 ##-------------------Residual Parameters---------------------##
 
-constrain_parameter = 1
+constrain_parameter = 0.1
 
 gram_matrix_inv = torch.tensor([[4.0, -2.0], 
                                 [-2.0, 4.0]], 
                                requires_grad = False)
+
 gram_boundary_matrix = torch.eye(output_dimension)
 
 
@@ -136,13 +146,13 @@ for epoch in range(epochs):
     
     res_value = res.residual_value_IVP()
     
-    eval_error = quad.interpolate(NN.evaluate) - exact_evaluation
+    eval_error = error_quad.interpolate(NN.evaluate) - exact_evaluation
     
-    jac_error = quad.interpolate(NN.jacobian).squeeze(-1) - exact_jacobian_evaluation
+    jac_error = error_quad.interpolate(NN.jacobian).squeeze(-1) - exact_jacobian_evaluation
     
-    initial_error = quad.interpolate_boundary(NN.evaluate) - initial_values
+    initial_error = error_quad.interpolate_boundary(NN.evaluate) - initial_values
     
-    H_1_error = quad.H_1_norm(function_evaluation = eval_error,
+    H_1_error = error_quad.H_1_norm(function_evaluation = eval_error,
                               jacobian_evalution = jac_error,
                               boundary_evaluation = initial_error)/exact_H_1_norm
     
@@ -165,11 +175,7 @@ solution = NN.evaluate
 
 ##----------------------Plotting------------------##
 
-plot_points = torch.linspace(domain[0],domain[1],1000).unsqueeze(1)
-
-NN_evaluation = solution(plot_points)
-
-exact_evaluation = exact_solution(plot_points)
+NN_evaluation = error_quad.interpolate(solution)
 
 solution_labels = [r"$u_1$", r"$u_2$"]
 solution_colors = ["blue", "red"]
@@ -177,9 +183,7 @@ NN_labels = [r"$u^{\theta}_1$", r"$u^{\theta}_2$"]
 NN_colors = ["orange", "purple"]
 NN_linestyle = [":", "-."]
 
-plot_points = plot_points.cpu().detach().numpy()
 NN_evaluation = NN_evaluation.cpu().detach().numpy()
-exact_evaluation_np = exact_evaluation.cpu().detach().numpy()
 
 figure_solution, axis_solution = subplots(dpi=500,
                                           figsize=(12, 8))
@@ -200,7 +204,10 @@ for i in range(len(NN_evaluation[1,:])):
                        color = NN_colors[i],
                        linestyle = NN_linestyle[i])
     
-axis_solution.set(title="VPINNs final solution", xlabel="t", ylabel="u (t)")
+axis_solution.set(title="VPINNs final solution", 
+                  xlabel="t", 
+                  ylabel="u (t)")
+
 axis_solution.legend()
     
 figure_loss, axis_loss = subplots(dpi=500,
@@ -209,15 +216,19 @@ figure_loss, axis_loss = subplots(dpi=500,
 figure_loglog, axis_loglog = subplots(dpi=500,
                                   figsize=(12,8))
 
-axis_loss.semilogy(loss_relative_error, label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{H^1(\Omega)}}$")
-axis_loss.semilogy(H_1_relative_error, label = r"$\frac{\|u-u_\theta\|_{H^1(\Omega)}}{\|u\|_{H^1(\Omega)}}$")
+axis_loss.semilogy(loss_relative_error, 
+                   label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{H^1(\Omega)}}$")
+
+axis_loss.semilogy(H_1_relative_error, 
+                   label = r"$\frac{\|u-u_\theta\|_{H^1(\Omega)}}{\|u\|_{H^1(\Omega)}}$")
+
 axis_loss.set(title="Loss evolution",
               xlabel="# epochs", 
               ylabel="Loss")
+
 axis_loss.legend()
 
 axis_loglog.loglog(loss_relative_error,
                    H_1_relative_error)
 
 torch.cuda.empty_cache()
-
