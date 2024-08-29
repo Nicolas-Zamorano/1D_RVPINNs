@@ -93,3 +93,31 @@ class Residual:
         res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
                 
         return res_value
+    
+    def PINNs_residual_IVP(self):
+        """
+        Compute the PINNs residual value for a Initial Value Problem (IVP).        
+        Returns:
+        - loss_value (torch.Tensor): The computed loss value.
+        """
+        print("Computing Residual Value...")
+        
+        NN_evaluation = self.quadrature_rule.interpolate(self.neural_network.evaluate)
+        NN_jacobian_evaluation = self.quadrature_rule.interpolate(self.neural_network.jacobian).squeeze(-1)
+        NN_initial_value_evalution = self.quadrature_rule.interpolate_boundary(self.neural_network.evaluate)
+        
+        governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
+                                                                                                  NN_evaluation,
+                                                                                                  self.governing_equations_parameters))
+        
+        constrain_vector = NN_initial_value_evalution - self.initial_values
+
+        residual_vector = NN_jacobian_evaluation - governing_equations_evaluation
+                        
+        loss_vector = torch.concat([residual_vector, constrain_vector.view(-1,2)], dim = 0)
+        
+        loss = torch.nn.MSELoss()
+        
+        res_value = loss(loss_vector,torch.zeros_like(loss_vector,requires_grad = False))
+                
+        return res_value
