@@ -154,8 +154,7 @@ class Quadrature_Rule:
                  jacobian: Callable = None,
                  function_evaluation: torch.Tensor = None,
                  jacobian_evalution: torch.Tensor = None,
-                 boundary_evaluation: torch.Tensor = None,
-                 ):
+                 boundary_evaluation: torch.Tensor = None):
         
         if function != None and jacobian != None:
         
@@ -170,3 +169,22 @@ class Quadrature_Rule:
         H_1_norm = torch.sqrt(L_2_norm + L_2_jacobian_norm + boundary_norm)
         
         return H_1_norm
+    
+    def linear_ode_norm(self,
+                        governing_equations_evaluation: torch.Tensor,
+                        function: Callable = None, 
+                        jacobian: Callable = None,
+                        jacobian_evalution: torch.Tensor = None,
+                        boundary_evaluation: torch.Tensor = None):
+            
+        if function != None and jacobian != None:
+        
+            jacobian_evalution = self.interpolate(jacobian)
+            boundary_evaluation = self.interpolate_boundary(function)
+                
+        ode_norm = torch.sum(self.integrate((jacobian_evalution-governing_equations_evaluation)**2))
+        boundary_norm = torch.sum(boundary_evaluation**2)
+        
+        linear_ode_norm = torch.sqrt(ode_norm + boundary_norm)
+        
+        return linear_ode_norm
