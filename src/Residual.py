@@ -107,8 +107,8 @@ class Residual:
         NN_initial_value_evalution = self.quadrature_rule.interpolate_boundary(self.neural_network.evaluate)
         
         governing_equations_evaluation = self.quadrature_rule.interpolate(lambda x: self.governing_equations(x,
-                                                                                                  NN_evaluation,
-                                                                                                  self.governing_equations_parameters))
+                                                                                                             NN_evaluation,
+                                                                                                             self.governing_equations_parameters))
         
         constrain_vector = NN_initial_value_evalution - self.initial_values
 
