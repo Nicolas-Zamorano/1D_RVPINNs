@@ -70,12 +70,12 @@ quad = Quadrature_Rule(collocation_points = collocation_points,
 
 ##----------------------Posteriori Error------------------##
 
-collocation_points = torch.linspace(domain[0], 
+error_computations_points = torch.linspace(domain[0], 
                                     domain[1], 
                                     batch_size, 
                                     requires_grad = False).unsqueeze(1)
 
-error_quad = Quadrature_Rule(collocation_points = collocation_points,
+error_quad = Quadrature_Rule(collocation_points = error_computations_points,
                              boundary_points = initial_points)
 
 def exact_solution(x):
@@ -107,9 +107,11 @@ exact_jacobian_evaluation = error_quad.interpolate(lambda x: governing_equations
                                                                                  exact_evaluation,
                                                                                  parameters = parameters))
 
-exact_H_1_norm = error_quad.H_1_norm(function_evaluation = exact_evaluation,
-                                     jacobian_evalution = exact_jacobian_evaluation,
-                                     boundary_evaluation = initial_values)
+exact_H_1_norm = error_quad.linear_ode_norm(governing_equations_evaluation = exact_evaluation,
+                                            jacobian_evalution = exact_jacobian_evaluation,
+                                            boundary_evaluation = initial_values)
+
+exact_norm = torch.sqrt(torch.sum(initial_values*2))
 
 ##-------------------Residual Parameters---------------------##
 
@@ -145,18 +147,20 @@ for epoch in range(epochs):
     print(f"{'='*20} [{current_time}] Epoch:{epoch + 1}/{epochs} {'='*20}")
     
     res_value = res.residual_value_IVP()
-    
-    eval_error = error_quad.interpolate(NN.evaluate) - exact_evaluation
-    
+        
     jac_error = error_quad.interpolate(NN.jacobian).squeeze(-1) - exact_jacobian_evaluation
+    
+    governing_eq_error = error_quad.interpolate(lambda x: governing_equations(x,
+                                                                              exact_evaluation - error_quad.interpolate(NN.evaluate),
+                                                                              parameters = parameters))
     
     initial_error = error_quad.interpolate_boundary(NN.evaluate) - initial_values
     
-    H_1_error = error_quad.H_1_norm(function_evaluation = eval_error,
-                              jacobian_evalution = jac_error,
-                              boundary_evaluation = initial_error)/exact_H_1_norm
+    H_1_error = error_quad.linear_ode_norm(governing_equations_evaluation = governing_eq_error,
+                                           jacobian_evalution = jac_error,
+                                           boundary_evaluation = initial_error)/exact_norm
     
-    res_error = torch.sqrt(res_value)/exact_H_1_norm
+    res_error = torch.sqrt(res_value)/exact_norm
     
     if res_value < res_opt:
         res_opt = res_value
