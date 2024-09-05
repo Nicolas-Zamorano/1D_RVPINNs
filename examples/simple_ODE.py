@@ -83,11 +83,13 @@ exact_jacobian_evaluation = quad.interpolate(lambda x: governing_equations(x,
 
 dx_exact, dy_exact = torch.split(exact_evaluation, 1, dim = 1)
 
-error = quad.integrate(dx_exact + y_exact) + quad.integrate 
+# error = quad.integrate(dx_exact + y_exact) + quad.integrate 
 
 exact_H_1_norm = quad.H_1_norm(function_evaluation = torch.zeros_like(exact_evaluation),
                                jacobian_evalution = torch.zeros_like(exact_jacobian_evaluation),
                                boundary_evaluation = initial_values)
+
+exact_norm = torch.sqrt(torch.sum(initial_values**2))
 
 ##-------------------Residual Parameters---------------------##
 
