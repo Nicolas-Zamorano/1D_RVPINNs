@@ -24,16 +24,22 @@ hidden_layers_dimension = 25
 ##----------------------Training Parameters------------------##
 
 batch_size = 100
-epochs = 6000
-learning_rate = 0.001
+epochs = 8000
 optimizer = "Adam" # Adam or SGD
+learning_rate = 0.003
+scheduler = "Exponential" # only Exponential
+decay_rate = 0.9
+decay_steps = 200
 
 NN = Neural_Network(input_dimension = input_dimension, 
                     output_dimension = output_dimension, 
                     deep_layers = deep_layers, 
                     hidden_layers_dimension = hidden_layers_dimension,
-                    optimizer = "Adam",
-                    learning_rate = learning_rate)
+                    optimizer = optimizer,
+                    learning_rate = learning_rate,
+                    scheduler = scheduler,
+                    decay_rate = decay_rate,
+                    decay_steps = decay_steps)
 
 ##----------------------ODE Parameters------------------##
 
@@ -72,7 +78,7 @@ quad = Quadrature_Rule(collocation_points = collocation_points,
 
 error_computations_points = torch.linspace(domain[0], 
                                     domain[1], 
-                                    batch_size, 
+                                    2000, 
                                     requires_grad = False).unsqueeze(1)
 
 error_quad = Quadrature_Rule(collocation_points = error_computations_points,
@@ -141,6 +147,8 @@ H_1_relative_error = []
 
 res_opt = 10e16
 
+start_time = datetime.now()
+
 print(f"{'='*30} Training {'='*30}")
 for epoch in range(epochs):
     current_time = datetime.now().strftime("%H:%M:%S")
@@ -172,6 +180,12 @@ for epoch in range(epochs):
     
     loss_relative_error.append(res_error.item())
     H_1_relative_error.append(H_1_error.item())
+    
+end_time = datetime.now()
+
+execution_time = end_time - start_time
+
+print(f"Training time: {execution_time}")
     
 NN.load_state_dict(params_opt)
 
