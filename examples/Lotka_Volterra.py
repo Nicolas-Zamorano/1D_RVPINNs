@@ -3,8 +3,8 @@ import torch
 from datetime import datetime
 from matplotlib.pyplot import subplots, show
 
-sys.path.insert(0, "../src/")
-sys.path.insert(1, "../utils/")
+sys.path.insert(0, "../RVPINNs/src/")
+sys.path.insert(1, "../RVPINNs/utils/")
 torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
 torch.cuda.empty_cache()
 torch.set_default_dtype(torch.float64)
@@ -25,11 +25,11 @@ hidden_layers_dimension = 25
 
 batch_size = 100
 epochs = 8000
-optimizer = "Adam" # Adam or SGD
+optimizer = "Adam"
 learning_rate = 0.003
-scheduler = "Exponential" # only Exponential
-decay_rate = 0.9
-decay_steps = 200
+scheduler = "Exponential"
+decay_rate = 0.95
+decay_steps = 100
 
 NN = Neural_Network(input_dimension = input_dimension, 
                     output_dimension = output_dimension, 
@@ -77,9 +77,9 @@ quad = Quadrature_Rule(collocation_points = collocation_points,
 ##----------------------Posteriori Error------------------##
 
 error_computations_points = torch.linspace(domain[0], 
-                                    domain[1], 
-                                    2000, 
-                                    requires_grad = False).unsqueeze(1)
+                                           domain[1], 
+                                           2000, 
+                                           requires_grad = False).unsqueeze(1)
 
 error_quad = Quadrature_Rule(collocation_points = error_computations_points,
                              boundary_points = initial_points)
@@ -110,14 +110,14 @@ axis_exact.plot(plot_points,
 show()
 
 exact_jacobian_evaluation = error_quad.interpolate(lambda x: governing_equations(x,
-                                                                                 exact_evaluation,
-                                                                                 parameters = parameters))
+                                                                                  exact_evaluation,
+                                                                                  parameters = parameters))
 
-exact_H_1_norm = error_quad.linear_ode_norm(governing_equations_evaluation = exact_evaluation,
-                                            jacobian_evalution = exact_jacobian_evaluation,
-                                            boundary_evaluation = initial_values)
+# exact_H_1_norm = error_quad.linear_ode_norm(governing_equations_evaluation = exact_evaluation,
+#                                             jacobian_evalution = exact_jacobian_evaluation,
+#                                             boundary_evaluation = initial_values)
 
-exact_norm = torch.sqrt(torch.sum(initial_values*2))
+exact_norm = torch.sqrt(torch.sum(initial_values**2))
 
 ##-------------------Residual Parameters---------------------##
 
@@ -235,10 +235,10 @@ figure_loglog, axis_loglog = subplots(dpi=500,
                                   figsize=(12,8))
 
 axis_loss.semilogy(loss_relative_error, 
-                   label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{H^1(\Omega)}}$")
+                   label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{V}}$")
 
 axis_loss.semilogy(H_1_relative_error, 
-                   label = r"$\frac{\|u-u_\theta\|_{H^1(\Omega)}}{\|u\|_{H^1(\Omega)}}$")
+                   label = r"$\frac{\|u-u_\theta\|_{V}}{\|u\|_{V}}$")
 
 axis_loss.set(title="Loss evolution",
               xlabel="# epochs", 
