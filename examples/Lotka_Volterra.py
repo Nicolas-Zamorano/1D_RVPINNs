@@ -113,7 +113,7 @@ exact_jacobian_evaluation = error_quad.interpolate(lambda x: governing_equations
                                                                                   exact_evaluation,
                                                                                   parameters = parameters))
 
-# exact_H_1_norm = error_quad.linear_ode_norm(governing_equations_evaluation = exact_evaluation,
+# exact_H_1_norm = error_quad.H_1_norm(governing_equations_evaluation = exact_evaluation,
 #                                             jacobian_evalution = exact_jacobian_evaluation,
 #                                             boundary_evaluation = initial_values)
 
@@ -143,7 +143,7 @@ res = Residual(neural_network = NN,
 ##----------------------Training------------------##
 
 loss_relative_error = []
-H_1_relative_error = []
+relative_error = []
 
 res_opt = 10e16
 
@@ -164,7 +164,7 @@ for epoch in range(epochs):
     
     initial_error = error_quad.interpolate_boundary(NN.evaluate) - initial_values
     
-    H_1_error = error_quad.linear_ode_norm(governing_equations_evaluation = governing_eq_error,
+    error = error_quad.linear_ode_norm(governing_equations_evaluation = governing_eq_error,
                                            jacobian_evalution = jac_error,
                                            boundary_evaluation = initial_error)/exact_norm
     
@@ -174,12 +174,12 @@ for epoch in range(epochs):
         res_opt = res_value
         params_opt = NN.state_dict()
     
-    print(f"Loss: {res_value.item():.8f} Relative Loss: {res_error.item():.8f} H^1 norm:{H_1_error.item():.8f}")
+    print(f"Loss: {res_value.item():.8f} Relative Loss: {res_error.item():.8f} V norm:{error.item():.8f}")
     
     NN.optimizer_step(res_value)
     
     loss_relative_error.append(res_error.item())
-    H_1_relative_error.append(H_1_error.item())
+    relative_error.append(error.item())
     
 end_time = datetime.now()
 
@@ -237,7 +237,7 @@ figure_loglog, axis_loglog = subplots(dpi=500,
 axis_loss.semilogy(loss_relative_error, 
                    label = r"$\frac{\sqrt{\mathcal{L}(u_\theta)}}{\|u\|_{V}}$")
 
-axis_loss.semilogy(H_1_relative_error, 
+axis_loss.semilogy(relative_error, 
                    label = r"$\frac{\|u-u_\theta\|_{V}}{\|u\|_{V}}$")
 
 axis_loss.set(title="Loss evolution",
@@ -247,6 +247,6 @@ axis_loss.set(title="Loss evolution",
 axis_loss.legend()
 
 axis_loglog.loglog(loss_relative_error,
-                   H_1_relative_error)
+                   relative_error)
 
 torch.cuda.empty_cache()

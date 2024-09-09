@@ -93,10 +93,14 @@ class Neural_Network(torch.nn.Module):
         Updates:
         - Model parameters using the optimizer.
         """
-        
-        print(f"Updating Neural Network - Learning Rate:{self.scheduler.get_last_lr()}")
-        self.optimizer.zero_grad() 
-        loss_value.backward(retain_graph=True)  
-        self.optimizer.step()  
         if self.scheduler != None:
+            print(f"Updating Neural Network - Learning Rate:{self.scheduler.get_last_lr()}")
+            self.optimizer.zero_grad() 
+            loss_value.backward(retain_graph=True)  
+            self.optimizer.step()  
             self.scheduler.step()  
+        else:
+            print("Updating Neural Network...")
+            self.optimizer.zero_grad() 
+            loss_value.backward(retain_graph=True)  
+            self.optimizer.step()  
