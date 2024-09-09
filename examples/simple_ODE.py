@@ -23,8 +23,8 @@ hidden_layers_dimension = 25
 
 ##----------------------Training Parameters------------------##
 
-batch_size = 100
-epochs = 3000
+batch_size = 50
+epochs = 4000
 optimizer = "Adam"
 learning_rate = 0.00025
 scheduler = "Exponential"
