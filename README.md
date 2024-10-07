@@ -1,4 +1,4 @@
-# Robust Variational Physics-Informed Neural Networks (RVPINNs)
+# 1D Robust Variational Physics-Informed Neural Networks (RVPINNs)
 
 This repository contains the implementation of Robust Variational Physics-Informed Neural Networks (RVPINNs) as proposed in the following paper:
 
